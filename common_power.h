@@ -105,6 +105,7 @@ static void INLINE blas_lock(volatile unsigned long *address){
 	   "	bne- 1f\n"
 	   "	stwcx. %2,0, %1\n"
 	   "	bne- 0b\n"
+	   "    isync\n"
 	   "1:    "
 	: "=&r"(ret)
 	: "r"(address), "r" (val)
@@ -843,10 +844,14 @@ Lmcount$lazy_ptr:
 #define BUFFER_SIZE     (  2 << 20)
 #elif defined(PPC440FP2)
 #define BUFFER_SIZE     ( 16 << 20)
-#elif defined(POWER8) || defined(POWER9) || defined(POWER10)
-#define BUFFER_SIZE     ( 64 << 20)
+#elif defined(POWER6) || defined(POWER8) || defined(POWER9) || defined(POWER10)
+#define BUFFER_SIZE     ( 64 << 22)
 #else
 #define BUFFER_SIZE     ( 16 << 20)
+#endif
+#ifdef DYNAMIC_ARCH
+#undef BUFFER_SIZE
+#define BUFFER_SIZE (64 << 22)
 #endif
 
 #ifndef PAGESIZE

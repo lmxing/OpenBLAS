@@ -43,6 +43,63 @@
 #endif
 
 extern gotoblas_t  gotoblas_ARMV8;
+#ifdef DYNAMIC_LIST
+#ifdef DYN_CORTEXA53
+extern gotoblas_t  gotoblas_CORTEXA53;
+#else
+#define gotoblas_CORTEXA53 gotoblas_ARMV8
+#endif
+#ifdef DYN_CORTEXA57
+extern gotoblas_t  gotoblas_CORTEXA57;
+#else
+#define gotoblas_CORTEXA57 gotoblas_ARMV8
+#endif
+#ifdef DYN_CORTEXA72
+extern gotoblas_t  gotoblas_CORTEXA72;
+#else
+#define gotoblas_CORTEXA72 gotoblas_ARMV8
+#endif
+#ifdef DYN_CORTEXA73
+extern gotoblas_t  gotoblas_CORTEXA73;
+#else
+#define gotoblas_CORTEXA73 gotoblas_ARMV8
+#endif
+#ifdef DYN_FALKOR
+extern gotoblas_t  gotoblas_FALKOR;
+#else
+#define gotoblas_FALKOR gotoblas_ARMV8
+#endif
+#ifdef DYN_TSV110
+extern gotoblas_t  gotoblas_TSV110;
+#else
+#define gotoblas_TSV110 gotoblas_ARMV8
+#endif
+#ifdef DYN_THUNDERX
+extern gotoblas_t  gotoblas_THUNDERX;
+#else
+#define gotoblas_THUNDERX gotoblas_ARMV8
+#endif
+#ifdef DYN_THUNDERX2T99
+extern gotoblas_t  gotoblas_THUNDERX2T99;
+#else
+#define gotoblas_THUNDERX2T99 gotoblas_ARMV8
+#endif
+#ifdef DYN_THUNDERX3T110
+extern gotoblas_t  gotoblas_THUNDERX3T110;
+#else
+#define gotoblas_THUNDERX3T110 gotoblas_ARMV8
+#endif
+#ifdef DYN_EMAG8180
+extern gotoblas_t  gotoblas_EMAG8180;
+#else
+#define gotoblas_EMAG8180 gotoblas_ARMV8
+#endif
+#ifdef DYN_NEOVERSEN1
+extern gotoblas_t  gotoblas_NEOVERSEN1;
+#else
+#define gotoblas_NEOVERSEN1 gotoblas_ARMV8
+#endif
+#else
 extern gotoblas_t  gotoblas_CORTEXA53;
 extern gotoblas_t  gotoblas_CORTEXA57;
 extern gotoblas_t  gotoblas_CORTEXA72;
@@ -53,10 +110,12 @@ extern gotoblas_t  gotoblas_THUNDERX2T99;
 extern gotoblas_t  gotoblas_TSV110;
 extern gotoblas_t  gotoblas_EMAG8180;
 extern gotoblas_t  gotoblas_NEOVERSEN1;
+extern gotoblas_t  gotoblas_THUNDERX3T110;
+#endif
 
 extern void openblas_warning(int verbose, const char * msg);
 
-#define NUM_CORETYPES   11
+#define NUM_CORETYPES   12
 
 /*
  * In case asm/hwcap.h is outdated on the build system, make sure
@@ -67,7 +126,7 @@ extern void openblas_warning(int verbose, const char * msg);
 #endif
 
 #define get_cpu_ftr(id, var) ({					\
-		asm("mrs %0, "#id : "=r" (var));		\
+		__asm__ ("mrs %0, "#id : "=r" (var));		\
 	})
 
 static char *corename[] = {
@@ -82,6 +141,7 @@ static char *corename[] = {
   "tsv110",
   "emag8180",
   "neoversen1",
+  "thunderx3t110",
   "unknown"
 };
 
@@ -97,6 +157,7 @@ char *gotoblas_corename(void) {
   if (gotoblas == &gotoblas_TSV110)       return corename[ 8];
   if (gotoblas == &gotoblas_EMAG8180)     return corename[ 9];
   if (gotoblas == &gotoblas_NEOVERSEN1)   return corename[10];
+  if (gotoblas == &gotoblas_THUNDERX3T110) return corename[11];
   return corename[NUM_CORETYPES];
 }
 
@@ -127,6 +188,7 @@ static gotoblas_t *force_coretype(char *coretype) {
     case  8: return (&gotoblas_TSV110);
     case  9: return (&gotoblas_EMAG8180);
     case 10: return (&gotoblas_NEOVERSEN1);
+    case 11: return (&gotoblas_THUNDERX3T110);
   }
   snprintf(message, 128, "Core not found: %s\n", coretype);
   openblas_warning(1, message);
@@ -135,19 +197,30 @@ static gotoblas_t *force_coretype(char *coretype) {
 
 static gotoblas_t *get_coretype(void) {
   int implementer, variant, part, arch, revision, midr_el1;
+  char coremsg[128];
 
-#if (defined OS_LINUX || defined OS_ANDROID)
+#if (!defined OS_LINUX && !defined OS_ANDROID)
+  return NULL;
+#else
+
   if (!(getauxval(AT_HWCAP) & HWCAP_CPUID)) {
-    char coremsg[128];
+#ifdef __linux
+        FILE *infile;
+        char buffer[512], *p, *cpu_part = NULL, *cpu_implementer = NULL;
+        p = (char *) NULL ;
+	infile = fopen("/sys/devices/system/cpu/cpu0/regs/identification/midr_el1","r");
+	if (!infile) return NULL;
+	fgets(buffer, sizeof(buffer), infile);
+	midr_el1=strtoul(buffer,NULL,16);
+	fclose(infile);
+#else
     snprintf(coremsg, 128, "Kernel lacks cpuid feature support. Auto detection of core type failed !!!\n");
     openblas_warning(1, coremsg);
     return NULL;
-  }
-#else
-   return NULL;
 #endif
-
-  get_cpu_ftr(MIDR_EL1, midr_el1);
+  } else {
+    get_cpu_ftr(MIDR_EL1, midr_el1);
+  }
   /*
    * MIDR_EL1
    *
@@ -190,6 +263,8 @@ static gotoblas_t *get_coretype(void) {
           return &gotoblas_THUNDERX;
         case 0x0af: // ThunderX2
           return &gotoblas_THUNDERX2T99;
+        case 0x0b8: // ThunderX3
+          return &gotoblas_THUNDERX3T110;
       }
       break;
     case 0x48: // HiSilicon
@@ -213,8 +288,12 @@ static gotoblas_t *get_coretype(void) {
           return &gotoblas_FALKOR;
       }
       break;
+    default:
+      snprintf(coremsg, 128, "Unknown CPU model - implementer %x part %x\n",implementer,part);
+      openblas_warning(1, coremsg);
   }
   return NULL;
+#endif
 }
 
 void gotoblas_dynamic_init(void) {

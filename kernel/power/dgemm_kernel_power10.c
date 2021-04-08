@@ -27,81 +27,71 @@ USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "common.h"
 #include <altivec.h>
 
-typedef unsigned char vec_t __attribute__ ((vector_size (16)));
+typedef __vector unsigned char  vec_t;
 typedef FLOAT v4sf_t __attribute__ ((vector_size (16)));
-typedef FLOAT v2sf_t __attribute__ ((vector_size (8)));
+#if !__has_builtin(__builtin_vsx_assemble_pair)
+#define __builtin_vsx_assemble_pair __builtin_mma_assemble_pair
+#endif
+
+#if !__has_builtin(__builtin_vsx_disassemble_pair)
+#define __builtin_vsx_disassemble_pair __builtin_mma_disassemble_pair
+#endif
 
 #ifdef TRMMKERNEL
 #define SAVE_ACC(ACC, J)  \
-          __builtin_mma_disassemble_acc (result, ACC); \
+          __builtin_mma_disassemble_acc ((void *)result, ACC); \
           rowC = (v4sf_t *) &CO[0* ldc+J]; \
-          rowC[0] = result[3] * alpha; \
+          rowC[0] = result[0] * alpha; \
           rowC = (v4sf_t *) &CO[1*ldc+J]; \
-          rowC[0] = result[2] * alpha; \
+          rowC[0] = result[1] * alpha; \
           rowC = (v4sf_t *) &CO[2*ldc+J]; \
-          rowC[0] = result[1] * alpha; \
-          rowC = (v4sf_t *) &CO[3*ldc+J]; \
-          rowC[0] = result[0] * alpha;
-#define SAVE_ACC1(ACC, J)  \
-          __builtin_mma_disassemble_acc (result, ACC); \
-          rowC = (v4sf_t *) &CO[4* ldc+J]; \
-          rowC[0] = result[3] * alpha; \
-          rowC = (v4sf_t *) &CO[5*ldc+J]; \
           rowC[0] = result[2] * alpha; \
-          rowC = (v4sf_t *) &CO[6*ldc+J]; \
+          rowC = (v4sf_t *) &CO[3*ldc+J]; \
+          rowC[0] = result[3] * alpha;
+#define SAVE_ACC1(ACC, J)  \
+          __builtin_mma_disassemble_acc ((void *)result, ACC); \
+          rowC = (v4sf_t *) &CO[4* ldc+J]; \
+          rowC[0] = result[0] * alpha; \
+          rowC = (v4sf_t *) &CO[5*ldc+J]; \
           rowC[0] = result[1] * alpha; \
+          rowC = (v4sf_t *) &CO[6*ldc+J]; \
+          rowC[0] = result[2] * alpha; \
           rowC = (v4sf_t *) &CO[7*ldc+J]; \
-          rowC[0] = result[0] * alpha;
+          rowC[0] = result[3] * alpha;
 #define  SAVE2x4_ACC(ACC, J)  \
-	  __builtin_mma_disassemble_acc (result, ACC); \
+	  __builtin_mma_disassemble_acc ((void *)result, ACC); \
 	  rowC = (v4sf_t *) &CO[0* ldc+J]; \
-          rowC[0] = result[3] * alpha; \
+          rowC[0] = result[0] * alpha; \
 	  rowC = (v4sf_t *) &CO[1* ldc+J]; \
-          rowC[0] = result[2] * alpha;
+          rowC[0] = result[1] * alpha;
 #else
 #define SAVE_ACC(ACC, J)  \
-          __builtin_mma_disassemble_acc (result, ACC); \
+          __builtin_mma_disassemble_acc ((void *)result, ACC); \
           rowC = (v4sf_t *) &CO[0* ldc+J]; \
-          rowC[0] += result[3] * alpha; \
+          rowC[0] += result[0] * alpha; \
           rowC = (v4sf_t *) &CO[1*ldc+J]; \
-          rowC[0] += result[2] * alpha; \
+          rowC[0] += result[1] * alpha; \
           rowC = (v4sf_t *) &CO[2*ldc+J]; \
-          rowC[0] += result[1] * alpha; \
-          rowC = (v4sf_t *) &CO[3*ldc+J]; \
-          rowC[0] += result[0] * alpha;
-#define SAVE_ACC1(ACC, J)  \
-          __builtin_mma_disassemble_acc (result, ACC); \
-          rowC = (v4sf_t *) &CO[4* ldc+J]; \
-          rowC[0] += result[3] * alpha; \
-          rowC = (v4sf_t *) &CO[5*ldc+J]; \
           rowC[0] += result[2] * alpha; \
-          rowC = (v4sf_t *) &CO[6*ldc+J]; \
+          rowC = (v4sf_t *) &CO[3*ldc+J]; \
+          rowC[0] += result[3] * alpha;
+#define SAVE_ACC1(ACC, J)  \
+          __builtin_mma_disassemble_acc ((void *)result, ACC); \
+          rowC = (v4sf_t *) &CO[4* ldc+J]; \
+          rowC[0] += result[0] * alpha; \
+          rowC = (v4sf_t *) &CO[5*ldc+J]; \
           rowC[0] += result[1] * alpha; \
+          rowC = (v4sf_t *) &CO[6*ldc+J]; \
+          rowC[0] += result[2] * alpha; \
           rowC = (v4sf_t *) &CO[7*ldc+J]; \
-          rowC[0] += result[0] * alpha;
+          rowC[0] += result[3] * alpha;
 #define  SAVE2x4_ACC(ACC, J)  \
-	  __builtin_mma_disassemble_acc (result, ACC); \
+	  __builtin_mma_disassemble_acc ((void *)result, ACC); \
 	  rowC = (v4sf_t *) &CO[0* ldc+J]; \
-          rowC[0] += result[3] * alpha; \
+          rowC[0] += result[0] * alpha; \
 	  rowC = (v4sf_t *) &CO[1* ldc+J]; \
-          rowC[0] += result[2] * alpha;
+          rowC[0] += result[1] * alpha;
 #endif
-
-#define SET_ACC_ZERO4() \
-          __builtin_mma_xxsetaccz (&acc0); \
-          __builtin_mma_xxsetaccz (&acc1); \
-          __builtin_mma_xxsetaccz (&acc2); \
-          __builtin_mma_xxsetaccz (&acc3);
-
-#define SET_ACC_ZERO8() \
-          __builtin_mma_xxsetaccz (&acc0); \
-          __builtin_mma_xxsetaccz (&acc1); \
-          __builtin_mma_xxsetaccz (&acc2); \
-          __builtin_mma_xxsetaccz (&acc3); \
-          __builtin_mma_xxsetaccz (&acc4); \
-          __builtin_mma_xxsetaccz (&acc5); \
-          __builtin_mma_xxsetaccz (&acc6); \
-          __builtin_mma_xxsetaccz (&acc7);
 
 #define PREFETCH1(x, y) asm volatile ("dcbt %0, %1" : : "r" (x), "b" (y) : "memory");
 
@@ -165,7 +155,6 @@ CNAME (BLASLONG m, BLASLONG n, BLASLONG k, FLOAT alpha, FLOAT * A, FLOAT * B,
 #endif
   )
 {
-  BLASLONG N = n;
   BLASLONG i1;
 #if defined(TRMMKERNEL)
   BLASLONG off;
@@ -174,10 +163,221 @@ CNAME (BLASLONG m, BLASLONG n, BLASLONG k, FLOAT alpha, FLOAT * A, FLOAT * B,
   off = -offset;
 #endif
   v4sf_t valpha = { alpha, alpha };
-  N = n >> 2;
-  for (i1 = 0; i1 < N; i1++)
+  for (i1 = 0; i1 < (n >> 3); i1++)
     {
-      BLASLONG i, j, temp;
+      BLASLONG j, temp;
+      FLOAT *CO;
+      FLOAT *AO;
+#if defined(TRMMKERNEL) && defined(LEFT)
+      off = offset;
+#endif
+      CO = C;
+      C += ldc << 3;
+      AO = A;
+      PREFETCH1 (A, 128);
+      PREFETCH1 (A, 256);
+      for (j = 0; j < (m >> 3); j++)
+	{
+	  FLOAT *BO;
+#if defined(TRMMKERNEL)
+          REFRESH_POINTERS (8, 8);
+#else
+          BO = B;
+          temp = k;
+#endif
+	  v4sf_t *rowC;
+	  v4sf_t result[4];
+	  __vector_quad acc0, acc1, acc2, acc3, acc4,acc5,acc6,acc7;
+	  BLASLONG l = 0;
+	  vec_t *rowA = (vec_t *) & AO[0];
+	  vec_t *rb = (vec_t *) & BO[0];
+	  __vector_pair rowB, rowB1;
+	  __builtin_vsx_assemble_pair (&rowB, rb[1], rb[0]);
+	  __builtin_vsx_assemble_pair (&rowB1, rb[3], rb[2]);
+	  __builtin_mma_xvf64ger (&acc0, rowB, rowA[0]);
+	  __builtin_mma_xvf64ger (&acc1, rowB1, rowA[0]);
+	  __builtin_mma_xvf64ger (&acc2, rowB, rowA[1]);
+	  __builtin_mma_xvf64ger (&acc3, rowB1, rowA[1]);
+	  __builtin_mma_xvf64ger (&acc4, rowB, rowA[2]);
+	  __builtin_mma_xvf64ger (&acc5, rowB1, rowA[2]);
+	  __builtin_mma_xvf64ger (&acc6, rowB, rowA[3]);
+	  __builtin_mma_xvf64ger (&acc7, rowB1, rowA[3]);
+	  for (l = 1; l < temp; l++)
+	    {
+	      rowA = (vec_t *) & AO[l << 3];
+	      rb = (vec_t *) & BO[l << 3];
+	      __builtin_vsx_assemble_pair (&rowB, rb[1], rb[0]);
+	      __builtin_vsx_assemble_pair (&rowB1, rb[3], rb[2]);
+	      __builtin_mma_xvf64gerpp (&acc0, rowB, rowA[0]);
+	      __builtin_mma_xvf64gerpp (&acc1, rowB1, rowA[0]);
+	      __builtin_mma_xvf64gerpp (&acc2, rowB, rowA[1]);
+	      __builtin_mma_xvf64gerpp (&acc3, rowB1, rowA[1]);
+	      __builtin_mma_xvf64gerpp (&acc4, rowB, rowA[2]);
+	      __builtin_mma_xvf64gerpp (&acc5, rowB1, rowA[2]);
+	      __builtin_mma_xvf64gerpp (&acc6, rowB, rowA[3]);
+	      __builtin_mma_xvf64gerpp (&acc7, rowB1, rowA[3]);
+	    }
+	  SAVE_ACC (&acc0, 0);
+	  SAVE_ACC1 (&acc1, 0);
+	  SAVE_ACC (&acc2, 2);
+	  SAVE_ACC1 (&acc3, 2);
+	  SAVE_ACC (&acc4, 4);
+	  SAVE_ACC1 (&acc5, 4);
+	  SAVE_ACC (&acc6, 6);
+	  SAVE_ACC1 (&acc7, 6);
+	  CO += 8;
+	  AO += temp << 3;
+	  BO += temp << 3;
+#if defined(TRMMKERNEL)
+          REFRESH_AFTER_SAVE (8, 8)
+#endif
+	}
+      if (m & 4)
+	{
+	  FLOAT *BO;
+#if defined(TRMMKERNEL)
+          REFRESH_POINTERS (4, 8);
+#else
+          BO = B;
+          temp = k;
+#endif
+	  v4sf_t *rowC;
+	  v4sf_t result[4];
+	  __vector_quad acc0, acc1, acc2, acc3;
+	  BLASLONG l = 0;
+	  vec_t *rowA = (vec_t *) & AO[0];
+	  __vector_pair rowB, rowB1;
+	  vec_t *rb = (vec_t *) & BO[0];
+	  __builtin_vsx_assemble_pair (&rowB, rb[1], rb[0]);
+	  __builtin_vsx_assemble_pair (&rowB1, rb[3], rb[2]);
+	  __builtin_mma_xvf64ger (&acc0, rowB, rowA[0]);
+	  __builtin_mma_xvf64ger (&acc1, rowB1, rowA[0]);
+	  __builtin_mma_xvf64ger (&acc2, rowB, rowA[1]);
+	  __builtin_mma_xvf64ger (&acc3, rowB1, rowA[1]);
+	  for (l = 1; l < temp; l++)
+	    {
+	      rowA = (vec_t *) & AO[l << 2];
+	      rb = (vec_t *) & BO[l << 3];
+	      __builtin_vsx_assemble_pair (&rowB, rb[1], rb[0]);
+	      __builtin_vsx_assemble_pair (&rowB1, rb[3], rb[2]);
+	      __builtin_mma_xvf64gerpp (&acc0, rowB, rowA[0]);
+	      __builtin_mma_xvf64gerpp (&acc1, rowB1, rowA[0]);
+	      __builtin_mma_xvf64gerpp (&acc2, rowB, rowA[1]);
+	      __builtin_mma_xvf64gerpp (&acc3, rowB1, rowA[1]);
+	    }
+	  SAVE_ACC (&acc0, 0);
+	  SAVE_ACC1 (&acc1, 0);
+	  SAVE_ACC (&acc2, 2);
+	  SAVE_ACC1 (&acc3, 2);
+	  CO += 4;
+	  AO += temp << 2;
+	  BO += temp << 3;
+#if defined(TRMMKERNEL)
+          REFRESH_AFTER_SAVE (4, 8)
+#endif
+	}
+      if (m & 2)
+	{
+	  FLOAT *BO;
+#if defined(TRMMKERNEL)
+          REFRESH_POINTERS (2, 8);
+#else
+          BO = B;
+          temp = k;
+#endif
+	  v4sf_t *rowC;
+	  v4sf_t result[4];
+	  __vector_quad acc0, acc1;
+	  BLASLONG l = 0;
+	  vec_t *rowA = (vec_t *) & AO[0];
+	  __vector_pair rowB, rowB1;
+	  vec_t *rb = (vec_t *) & BO[0];
+	  __builtin_vsx_assemble_pair (&rowB, rb[1], rb[0]);
+	  __builtin_vsx_assemble_pair (&rowB1, rb[3], rb[2]);
+	  __builtin_mma_xvf64ger (&acc0, rowB, rowA[0]);
+	  __builtin_mma_xvf64ger (&acc1, rowB1, rowA[0]);
+	  for (l = 1; l < temp; l++)
+	    {
+	      rowA = (vec_t *) & AO[l << 1];
+	      rb = (vec_t *) & BO[l << 3];
+	      __builtin_vsx_assemble_pair (&rowB, rb[1], rb[0]);
+	      __builtin_vsx_assemble_pair (&rowB1, rb[3], rb[2]);
+	      __builtin_mma_xvf64gerpp (&acc0, rowB, rowA[0]);
+	      __builtin_mma_xvf64gerpp (&acc1, rowB1, rowA[0]);
+	    }
+	  SAVE_ACC (&acc0, 0);
+	  SAVE_ACC1 (&acc1, 0);
+	  CO += 2;
+	  AO += temp << 1;
+	  BO += temp << 3;
+#if defined(TRMMKERNEL)
+          REFRESH_AFTER_SAVE (2, 8)
+#endif
+	}
+      if (m & 1)
+	{
+	  FLOAT *BO;
+#if defined(TRMMKERNEL)
+          REFRESH_POINTERS (1, 8);
+#else
+          BO = B;
+          temp = k;
+#endif
+	  BLASLONG l = 0;
+	  v4sf_t t = { 0, 0 };
+	  v4sf_t t1 = { 0, 0 };
+	  v4sf_t t2 = { 0, 0 };
+	  v4sf_t t3 = { 0, 0 };
+	  for (l = 0; l < temp; l++)
+	    {
+	      v4sf_t rowA = { AO[l], AO[l] };
+	      v4sf_t rowB = { BO[l << 3], BO[(l << 3) + 1] };
+	      v4sf_t rowB1 = { BO[(l << 3) + 2], BO[(l << 3) + 3] };
+	      v4sf_t rowB2 = { BO[(l << 3) + 4], BO[(l << 3) + 5] };
+	      v4sf_t rowB3 = { BO[(l << 3) + 6], BO[(l << 3) + 7] };
+	      t += rowA * rowB;
+	      t1 += rowA * rowB1;
+	      t2 += rowA * rowB2;
+	      t3 += rowA * rowB3;
+	    }
+	  t = t * valpha;
+	  t1 = t1 * valpha;
+	  t2 = t2 * valpha;
+	  t3 = t3 * valpha;
+#if defined(TRMMKERNEL)
+	  CO[0 * ldc] = t[0];
+	  CO[1 * ldc] = t[1];
+	  CO[2 * ldc] = t1[0];
+	  CO[3 * ldc] = t1[1];
+	  CO[4 * ldc] = t2[0];
+	  CO[5 * ldc] = t2[1];
+	  CO[6 * ldc] = t3[0];
+	  CO[7 * ldc] = t3[1];
+#else
+	  CO[0 * ldc] += t[0];
+	  CO[1 * ldc] += t[1];
+	  CO[2 * ldc] += t1[0];
+	  CO[3 * ldc] += t1[1];
+	  CO[4 * ldc] += t2[0];
+	  CO[5 * ldc] += t2[1];
+	  CO[6 * ldc] += t3[0];
+	  CO[7 * ldc] += t3[1];
+#endif
+	  CO += 1;
+	  AO += temp;
+	  BO += temp << 3;
+#if defined(TRMMKERNEL)
+          REFRESH_AFTER_SAVE (1, 8)
+#endif
+	}
+#if defined(TRMMKERNEL) && !defined(LEFT)
+      off += 8;                 // number of values in A
+#endif
+      B += k << 3;
+    }
+  if (n & 4)
+    {
+      BLASLONG j, temp;
       FLOAT *CO;
       FLOAT *AO;
 #if defined(TRMMKERNEL) && defined(LEFT)
@@ -188,61 +388,7 @@ CNAME (BLASLONG m, BLASLONG n, BLASLONG k, FLOAT alpha, FLOAT * A, FLOAT * B,
       AO = A;
       PREFETCH1 (A, 128);
       PREFETCH1 (A, 256);
-      i = m >> 4;
-      for (j = 0; j < i; j++)
-	{
-          FLOAT *BO;
-#if defined(TRMMKERNEL)
-          REFRESH_POINTERS (16, 4);
-#else
-          BO = B;
-          temp = k;
-#endif
-	  v4sf_t *rowC;
-	  v4sf_t result[4];
-	  BLASLONG l = 0;
-	  PREFETCH1 (CO, 0);
-	  PREFETCH1 (CO + ldc, 0);
-	  PREFETCH1 (CO + ldc + ldc, 0);
-	  PREFETCH1 (CO + ldc + ldc + ldc, 0);
-	  PREFETCH1 (CO, 128);
-	  PREFETCH1 (CO + ldc, 128);
-	  PREFETCH1 (CO + ldc + ldc, 128);
-	  PREFETCH1 (CO + ldc + ldc + ldc, 128);
-	  __vector_quad acc0, acc1, acc2, acc3, acc4, acc5, acc6, acc7;
-	  SET_ACC_ZERO8 ();
-	  for (l = 0; l < temp; l++)
-	    {
-	      vec_t *rowA = (vec_t *) & AO[l << 4];
-	      __vector_pair rowB;
-	      vec_t *rb = (vec_t *) & BO[l << 2];
-	      __builtin_mma_assemble_pair (&rowB, rb[1], rb[0]);
-	      __builtin_mma_xvf64gerpp (&acc0, rowB, rowA[0]);
-	      __builtin_mma_xvf64gerpp (&acc1, rowB, rowA[1]);
-	      __builtin_mma_xvf64gerpp (&acc2, rowB, rowA[2]);
-	      __builtin_mma_xvf64gerpp (&acc3, rowB, rowA[3]);
-	      __builtin_mma_xvf64gerpp (&acc4, rowB, rowA[4]);
-	      __builtin_mma_xvf64gerpp (&acc5, rowB, rowA[5]);
-	      __builtin_mma_xvf64gerpp (&acc6, rowB, rowA[6]);
-	      __builtin_mma_xvf64gerpp (&acc7, rowB, rowA[7]);
-	    }
-	  SAVE_ACC (&acc0, 0);
-	  SAVE_ACC (&acc2, 4);
-	  SAVE_ACC (&acc1, 2);
-	  SAVE_ACC (&acc3, 6);
-	  SAVE_ACC (&acc4, 8);
-	  SAVE_ACC (&acc6, 12);
-	  SAVE_ACC (&acc5, 10);
-	  SAVE_ACC (&acc7, 14);
-	  AO += temp << 4;
-	  BO += temp << 2;
-#if defined(TRMMKERNEL)
-          REFRESH_AFTER_SAVE (16, 4)
-#endif
-	  CO += 16;
-	}
-      i = (m & 15) >> 3;
-      for (j = 0; j < i; j++)
+      for (j = 0; j < (m >> 3); j++)
 	{
 	  FLOAT *BO;
 #if defined(TRMMKERNEL)
@@ -254,14 +400,20 @@ CNAME (BLASLONG m, BLASLONG n, BLASLONG k, FLOAT alpha, FLOAT * A, FLOAT * B,
 	  v4sf_t *rowC;
 	  v4sf_t result[4];
 	  __vector_quad acc0, acc1, acc2, acc3;
-	  SET_ACC_ZERO4 ();
 	  BLASLONG l = 0;
-	  for (l = 0; l < temp; l++)
+	  vec_t *rowA = (vec_t *) & AO[0];
+	  __vector_pair rowB;
+	  vec_t *rb = (vec_t *) & BO[0];
+	  __builtin_vsx_assemble_pair (&rowB, rb[1], rb[0]);
+	  __builtin_mma_xvf64ger (&acc0, rowB, rowA[0]);
+	  __builtin_mma_xvf64ger (&acc1, rowB, rowA[1]);
+	  __builtin_mma_xvf64ger (&acc2, rowB, rowA[2]);
+	  __builtin_mma_xvf64ger (&acc3, rowB, rowA[3]);
+	  for (l = 1; l < temp; l++)
 	    {
-	      vec_t *rowA = (vec_t *) & AO[l << 3];
-	      __vector_pair rowB;
-	      vec_t *rb = (vec_t *) & BO[l << 2];
-	      __builtin_mma_assemble_pair (&rowB, rb[1], rb[0]);
+	      rowA = (vec_t *) & AO[l << 3];
+	      rb = (vec_t *) & BO[l << 2];
+	      __builtin_vsx_assemble_pair (&rowB, rb[1], rb[0]);
 	      __builtin_mma_xvf64gerpp (&acc0, rowB, rowA[0]);
 	      __builtin_mma_xvf64gerpp (&acc1, rowB, rowA[1]);
 	      __builtin_mma_xvf64gerpp (&acc2, rowB, rowA[2]);
@@ -278,8 +430,7 @@ CNAME (BLASLONG m, BLASLONG n, BLASLONG k, FLOAT alpha, FLOAT * A, FLOAT * B,
           REFRESH_AFTER_SAVE (8, 4)
 #endif
 	}
-      i = (m & 7) >> 2;
-      for (j = 0; j < i; j++)
+      if (m & 4)
 	{
 	  FLOAT *BO;
 #if defined(TRMMKERNEL)
@@ -291,15 +442,18 @@ CNAME (BLASLONG m, BLASLONG n, BLASLONG k, FLOAT alpha, FLOAT * A, FLOAT * B,
 	  v4sf_t *rowC;
 	  v4sf_t result[4];
 	  __vector_quad acc0, acc1;
-	  __builtin_mma_xxsetaccz (&acc0);
-	  __builtin_mma_xxsetaccz (&acc1);
 	  BLASLONG l = 0;
-	  for (l = 0; l < temp; l++)
+	  vec_t *rowA = (vec_t *) & AO[0];
+	  __vector_pair rowB;
+	  vec_t *rb = (vec_t *) & BO[0];
+	  __builtin_vsx_assemble_pair (&rowB, rb[1], rb[0]);
+	  __builtin_mma_xvf64ger (&acc0, rowB, rowA[0]);
+	  __builtin_mma_xvf64ger (&acc1, rowB, rowA[1]);
+	  for (l = 1; l < temp; l++)
 	    {
-	      vec_t *rowA = (vec_t *) & AO[l << 2];
-	      __vector_pair rowB;
-	      vec_t *rb = (vec_t *) & BO[l << 2];
-	      __builtin_mma_assemble_pair (&rowB, rb[1], rb[0]);
+	      rowA = (vec_t *) & AO[l << 2];
+	      rb = (vec_t *) & BO[l << 2];
+	      __builtin_vsx_assemble_pair (&rowB, rb[1], rb[0]);
 	      __builtin_mma_xvf64gerpp (&acc0, rowB, rowA[0]);
 	      __builtin_mma_xvf64gerpp (&acc1, rowB, rowA[1]);
 	    }
@@ -312,8 +466,7 @@ CNAME (BLASLONG m, BLASLONG n, BLASLONG k, FLOAT alpha, FLOAT * A, FLOAT * B,
           REFRESH_AFTER_SAVE (4, 4)
 #endif
 	}
-      i = (m & 3) >> 1;
-      for (j = 0; j < i; j++)
+      if (m & 2)
 	{
 	  FLOAT *BO;
 #if defined(TRMMKERNEL)
@@ -325,14 +478,17 @@ CNAME (BLASLONG m, BLASLONG n, BLASLONG k, FLOAT alpha, FLOAT * A, FLOAT * B,
 	  v4sf_t *rowC;
 	  v4sf_t result[4];
 	  __vector_quad acc0;
-	  __builtin_mma_xxsetaccz (&acc0);
 	  BLASLONG l = 0;
-	  for (l = 0; l < temp; l++)
+	  vec_t *rowA = (vec_t *) & AO[0];
+	  __vector_pair rowB;
+	  vec_t *rb = (vec_t *) & BO[0];
+	  __builtin_vsx_assemble_pair (&rowB, rb[1], rb[0]);
+	  __builtin_mma_xvf64ger (&acc0, rowB, rowA[0]);
+	  for (l = 1; l < temp; l++)
 	    {
-	      vec_t *rowA = (vec_t *) & AO[l << 1];
-	      __vector_pair rowB;
-	      vec_t *rb = (vec_t *) & BO[l << 2];
-	      __builtin_mma_assemble_pair (&rowB, rb[1], rb[0]);
+	      rowA = (vec_t *) & AO[l << 1];
+	      rb = (vec_t *) & BO[l << 2];
+	      __builtin_vsx_assemble_pair (&rowB, rb[1], rb[0]);
 	      __builtin_mma_xvf64gerpp (&acc0, rowB, rowA[0]);
 	    }
 	  SAVE_ACC (&acc0, 0);
@@ -343,8 +499,7 @@ CNAME (BLASLONG m, BLASLONG n, BLASLONG k, FLOAT alpha, FLOAT * A, FLOAT * B,
           REFRESH_AFTER_SAVE (2, 4)
 #endif
 	}
-      i = (m & 1) >> 0;
-      for (j = 0; j < i; j++)
+      if (m & 1)
 	{
 	  FLOAT *BO;
 #if defined(TRMMKERNEL)
@@ -389,10 +544,9 @@ CNAME (BLASLONG m, BLASLONG n, BLASLONG k, FLOAT alpha, FLOAT * A, FLOAT * B,
 #endif
       B += k << 2;
     }
-  N = (n & 3) >> 1;
-  for (i1 = 0; i1 < N; i1++)
+  if (n & 2)
     {
-      BLASLONG i, j, temp;
+      BLASLONG j, temp;
 #if defined(TRMMKERNEL) && defined(LEFT)
       off = offset;
 #endif
@@ -401,55 +555,7 @@ CNAME (BLASLONG m, BLASLONG n, BLASLONG k, FLOAT alpha, FLOAT * A, FLOAT * B,
       CO = C;
       C += ldc << 1;
       AO = A;
-      i = m >> 4;
-      for (j = 0; j < i; j++)
-	{
-	  FLOAT *BO;
-#if defined(TRMMKERNEL)
-          REFRESH_POINTERS (16, 2);
-#else
-          BO = B;
-          temp = k;
-#endif
-	  v4sf_t *rowC;
-	  v4sf_t result[4];
-	  __vector_quad acc0, acc1, acc2, acc3, acc4, acc5, acc6, acc7;
-	  SET_ACC_ZERO8 ();
-	  BLASLONG l = 0;
-	  for (l = 0; l < temp; l++)
-	    {
-	      FLOAT t[4] = { 0, 0, 0, 0 };
-	      t[0] = BO[l << 1], t[1] = BO[(l << 1) + 1];
-	      __vector_pair rowB;
-	      vec_t *rb = (vec_t *) & t[0];
-	      __builtin_mma_assemble_pair (&rowB, rb[1], rb[0]);
-	      vec_t *rowA = (vec_t *) & AO[l << 4];
-	      __builtin_mma_xvf64gerpp (&acc0, rowB, rowA[0]);
-	      __builtin_mma_xvf64gerpp (&acc1, rowB, rowA[1]);
-	      __builtin_mma_xvf64gerpp (&acc2, rowB, rowA[2]);
-	      __builtin_mma_xvf64gerpp (&acc3, rowB, rowA[3]);
-	      __builtin_mma_xvf64gerpp (&acc4, rowB, rowA[4]);
-	      __builtin_mma_xvf64gerpp (&acc5, rowB, rowA[5]);
-	      __builtin_mma_xvf64gerpp (&acc6, rowB, rowA[6]);
-	      __builtin_mma_xvf64gerpp (&acc7, rowB, rowA[7]);
-	    }
-	  SAVE2x4_ACC (&acc0, 0);
-	  SAVE2x4_ACC (&acc1, 2);
-	  SAVE2x4_ACC (&acc2, 4);
-	  SAVE2x4_ACC (&acc3, 6);
-	  SAVE2x4_ACC (&acc4, 8);
-	  SAVE2x4_ACC (&acc5, 10);
-	  SAVE2x4_ACC (&acc6, 12);
-	  SAVE2x4_ACC (&acc7, 14);
-	  CO += 16;
-	  AO += temp << 4;
-	  BO += temp << 1;
-#if defined(TRMMKERNEL)
-          REFRESH_AFTER_SAVE (16, 2)
-#endif
-	}
-      i = (m & 15) >> 3;
-      for (j = 0; j < i; j++)
+      for (j = 0; j < (m >> 3); j++)
 	{
 	  FLOAT *BO;
 #if defined(TRMMKERNEL)
@@ -461,16 +567,20 @@ CNAME (BLASLONG m, BLASLONG n, BLASLONG k, FLOAT alpha, FLOAT * A, FLOAT * B,
 	  v4sf_t *rowC;
 	  v4sf_t result[4];
 	  __vector_quad acc0, acc1, acc2, acc3;
-	  SET_ACC_ZERO4 ();
 	  BLASLONG l = 0;
-	  for (l = 0; l < temp; l++)
+	  __vector_pair rowB;
+	  vec_t *rb = (vec_t *) & BO[0];
+	  __builtin_vsx_assemble_pair (&rowB, rb[0], rb[0]);
+	  vec_t *rowA = (vec_t *) & AO[0];
+	  __builtin_mma_xvf64ger (&acc0, rowB, rowA[0]);
+	  __builtin_mma_xvf64ger (&acc1, rowB, rowA[1]);
+	  __builtin_mma_xvf64ger (&acc2, rowB, rowA[2]);
+	  __builtin_mma_xvf64ger (&acc3, rowB, rowA[3]);
+	  for (l = 1; l < temp; l++)
 	    {
-	      FLOAT t[4] = { 0, 0, 0, 0 };
-	      t[0] = BO[l << 1], t[1] = BO[(l << 1) + 1];
-	      __vector_pair rowB;
-	      vec_t *rb = (vec_t *) & t[0];
-	      __builtin_mma_assemble_pair (&rowB, rb[1], rb[0]);
-	      vec_t *rowA = (vec_t *) & AO[l << 3];
+	      rb = (vec_t *) & BO[l << 1];
+	      __builtin_vsx_assemble_pair (&rowB, rb[0], rb[0]);
+	      rowA = (vec_t *) & AO[l << 3];
 	      __builtin_mma_xvf64gerpp (&acc0, rowB, rowA[0]);
 	      __builtin_mma_xvf64gerpp (&acc1, rowB, rowA[1]);
 	      __builtin_mma_xvf64gerpp (&acc2, rowB, rowA[2]);
@@ -487,8 +597,7 @@ CNAME (BLASLONG m, BLASLONG n, BLASLONG k, FLOAT alpha, FLOAT * A, FLOAT * B,
           REFRESH_AFTER_SAVE (8, 2)
 #endif
 	}
-      i = (m & 7) >> 2;
-      for (j = 0; j < i; j++)
+      if (m & 4)
 	{
 	  FLOAT *BO;
 #if defined(TRMMKERNEL)
@@ -500,17 +609,18 @@ CNAME (BLASLONG m, BLASLONG n, BLASLONG k, FLOAT alpha, FLOAT * A, FLOAT * B,
 	  v4sf_t *rowC;
 	  v4sf_t result[4];
 	  __vector_quad acc0, acc1;
-	  __builtin_mma_xxsetaccz (&acc0);
-	  __builtin_mma_xxsetaccz (&acc1);
 	  BLASLONG l = 0;
-	  for (l = 0; l < temp; l++)
+	  __vector_pair rowB;
+	  vec_t *rb = (vec_t *) & BO[0];
+	  __builtin_vsx_assemble_pair (&rowB, rb[0], rb[0]);
+	  vec_t *rowA = (vec_t *) & AO[0];
+	  __builtin_mma_xvf64ger (&acc0, rowB, rowA[0]);
+	  __builtin_mma_xvf64ger (&acc1, rowB, rowA[1]);
+	  for (l = 1; l < temp; l++)
 	    {
-	      FLOAT t[4] = { 0, 0, 0, 0 };
-	      t[0] = BO[l << 1], t[1] = BO[(l << 1) + 1];
-	      __vector_pair rowB;
-	      vec_t *rb = (vec_t *) & t[0];
-	      __builtin_mma_assemble_pair (&rowB, rb[1], rb[0]);
-	      vec_t *rowA = (vec_t *) & AO[l << 2];
+	      rb = (vec_t *) & BO[l << 1];
+	      __builtin_vsx_assemble_pair (&rowB, rb[0], rb[0]);
+	      rowA = (vec_t *) & AO[l << 2];
 	      __builtin_mma_xvf64gerpp (&acc0, rowB, rowA[0]);
 	      __builtin_mma_xvf64gerpp (&acc1, rowB, rowA[1]);
 	    }
@@ -523,8 +633,7 @@ CNAME (BLASLONG m, BLASLONG n, BLASLONG k, FLOAT alpha, FLOAT * A, FLOAT * B,
           REFRESH_AFTER_SAVE (4, 2)
 #endif
 	}
-      i = (m & 3) >> 1;
-      for (j = 0; j < i; j++)
+      if (m & 2)
 	{
 	  FLOAT *BO;
 #if defined(TRMMKERNEL)
@@ -536,16 +645,17 @@ CNAME (BLASLONG m, BLASLONG n, BLASLONG k, FLOAT alpha, FLOAT * A, FLOAT * B,
 	  v4sf_t *rowC;
 	  v4sf_t result[4];
 	  __vector_quad acc0;
-	  __builtin_mma_xxsetaccz (&acc0);
 	  BLASLONG l = 0;
-	  for (l = 0; l < temp; l++)
+	  __vector_pair rowB;
+	  vec_t *rb = (vec_t *) & BO[0];
+	  __builtin_vsx_assemble_pair (&rowB, rb[0], rb[0]);
+	  vec_t *rowA = (vec_t *) & AO[0];
+	  __builtin_mma_xvf64ger (&acc0, rowB, rowA[0]);
+	  for (l = 1; l < temp; l++)
 	    {
-	      FLOAT t[4] = { 0, 0, 0, 0 };
-	      t[0] = BO[l << 1], t[1] = BO[(l << 1) + 1];
-	      __vector_pair rowB;
-	      vec_t *rb = (vec_t *) & t[0];
-	      __builtin_mma_assemble_pair (&rowB, rb[1], rb[0]);
-	      vec_t *rowA = (vec_t *) & AO[l << 1];
+	      rb = (vec_t *) & BO[l << 1];
+	      __builtin_vsx_assemble_pair (&rowB, rb[0], rb[0]);
+	      rowA = (vec_t *) & AO[l << 1];
 	      __builtin_mma_xvf64gerpp (&acc0, rowB, rowA[0]);
 	    }
 	  SAVE2x4_ACC (&acc0, 0);
@@ -556,8 +666,7 @@ CNAME (BLASLONG m, BLASLONG n, BLASLONG k, FLOAT alpha, FLOAT * A, FLOAT * B,
           REFRESH_AFTER_SAVE (2, 2)
 #endif
 	}
-      i = (m & 1) >> 0;
-      for (j = 0; j < i; j++)
+      if (m & 1)
 	{
 	  FLOAT *BO;
 #if defined(TRMMKERNEL)
@@ -594,8 +703,7 @@ CNAME (BLASLONG m, BLASLONG n, BLASLONG k, FLOAT alpha, FLOAT * A, FLOAT * B,
 #endif
       B += k << 1;
     }
-  N = (n & 1) >> 0;
-  for (i1 = 0; i1 < N; i1++)
+  if (n & 1)
     {
       BLASLONG i, temp;
 #if defined(TRMMKERNEL) && defined(LEFT)
@@ -606,97 +714,7 @@ CNAME (BLASLONG m, BLASLONG n, BLASLONG k, FLOAT alpha, FLOAT * A, FLOAT * B,
       CO = C;
       C += ldc;
       AO = A;
-      i = m;
-      while (i >= 16)
-	{
-	  FLOAT *BO;
-#if defined(TRMMKERNEL)
-          REFRESH_POINTERS (16, 1)
-#else
-          BO = B;
-          temp = k;
-#endif
-	  BLASLONG l = 0;
-	  v4sf_t t = { 0, 0 };
-	  v4sf_t t1 = { 0, 0 };
-	  v4sf_t t2 = { 0, 0 };
-	  v4sf_t t3 = { 0, 0 };
-	  v4sf_t t4 = { 0, 0 };
-	  v4sf_t t5 = { 0, 0 };
-	  v4sf_t t6 = { 0, 0 };
-	  v4sf_t t7 = { 0, 0 };
-	  for (l = 0; l < temp; l++)
-	    {
-	      v4sf_t rowB = { BO[l], BO[l] };
-	      v4sf_t rowA = { AO[l << 4], AO[(l << 4) + 1] };
-	      v4sf_t rowA1 = { AO[(l << 4) + 2], AO[(l << 4) + 3] };
-	      v4sf_t rowA2 = { AO[(l << 4) + 4], AO[(l << 4) + 5] };
-	      v4sf_t rowA3 = { AO[(l << 4) + 6], AO[(l << 4) + 7] };
-	      v4sf_t rowA4 = { AO[(l << 4) + 8], AO[(l << 4) + 9] };
-	      v4sf_t rowA5 = { AO[(l << 4) + 10], AO[(l << 4) + 11] };
-	      v4sf_t rowA6 = { AO[(l << 4) + 12], AO[(l << 4) + 13] };
-	      v4sf_t rowA7 = { AO[(l << 4) + 14], AO[(l << 4) + 15] };
-	      t += rowA * rowB;
-	      t1 += rowA1 * rowB;
-	      t2 += rowA2 * rowB;
-	      t3 += rowA3 * rowB;
-	      t4 += rowA4 * rowB;
-	      t5 += rowA5 * rowB;
-	      t6 += rowA6 * rowB;
-	      t7 += rowA7 * rowB;
-	    }
-	  t = t * valpha;
-	  t1 = t1 * valpha;
-	  t2 = t2 * valpha;
-	  t3 = t3 * valpha;
-	  t4 = t4 * valpha;
-	  t5 = t5 * valpha;
-	  t6 = t6 * valpha;
-	  t7 = t7 * valpha;
-#if defined(TRMMKERNEL)
-	  CO[0] = t[0];
-	  CO[1] = t[1];
-	  CO[2] = t1[0];
-	  CO[3] = t1[1];
-	  CO[4] = t2[0];
-	  CO[5] = t2[1];
-	  CO[6] = t3[0];
-	  CO[7] = t3[1];
-	  CO[8] = t4[0];
-	  CO[9] = t4[1];
-	  CO[10] = t5[0];
-	  CO[11] = t5[1];
-	  CO[12] = t6[0];
-	  CO[13] = t6[1];
-	  CO[14] = t7[0];
-	  CO[15] = t7[1];
-#else
-	  CO[0] += t[0];
-	  CO[1] += t[1];
-	  CO[2] += t1[0];
-	  CO[3] += t1[1];
-	  CO[4] += t2[0];
-	  CO[5] += t2[1];
-	  CO[6] += t3[0];
-	  CO[7] += t3[1];
-	  CO[8] += t4[0];
-	  CO[9] += t4[1];
-	  CO[10] += t5[0];
-	  CO[11] += t5[1];
-	  CO[12] += t6[0];
-	  CO[13] += t6[1];
-	  CO[14] += t7[0];
-	  CO[15] += t7[1];
-#endif
-	  AO += temp << 4;
-	  BO += temp;
-	  CO += 16;
-	  i -= 16;
-#if defined(TRMMKERNEL)
-          REFRESH_AFTER_SAVE (16, 1)
-#endif
-	}
-      while (i >= 8)
+      for (i = 0; i < (m >> 3); i++)
 	{
 	  FLOAT *BO;
 #if defined(TRMMKERNEL)
@@ -748,12 +766,11 @@ CNAME (BLASLONG m, BLASLONG n, BLASLONG k, FLOAT alpha, FLOAT * A, FLOAT * B,
 	  AO += temp << 3;
 	  BO += temp;
 	  CO += 8;
-	  i -= 8;
 #if defined(TRMMKERNEL)
           REFRESH_AFTER_SAVE (8, 1)
 #endif
 	}
-      while (i >= 4)
+      if (m & 4)
 	{
 	  FLOAT *BO;
 #if defined(TRMMKERNEL)
@@ -789,12 +806,11 @@ CNAME (BLASLONG m, BLASLONG n, BLASLONG k, FLOAT alpha, FLOAT * A, FLOAT * B,
 	  AO += temp << 2;
 	  BO += temp;
 	  CO += 4;
-	  i -= 4;
 #if defined(TRMMKERNEL)
           REFRESH_AFTER_SAVE (4, 1)
 #endif
 	}
-      while (i >= 2)
+      if (m & 2)
 	{
 	  FLOAT *BO;
 #if defined(TRMMKERNEL)
@@ -822,12 +838,11 @@ CNAME (BLASLONG m, BLASLONG n, BLASLONG k, FLOAT alpha, FLOAT * A, FLOAT * B,
 	  AO += temp << 1;
 	  BO += temp;
 	  CO += 2;
-	  i -= 2;
 #if defined(TRMMKERNEL)
           REFRESH_AFTER_SAVE (2, 1)
 #endif
 	}
-      while (i >= 1)
+      if (m & 1)
 	{
 	  FLOAT *BO;
 #if defined(TRMMKERNEL)
@@ -850,7 +865,6 @@ CNAME (BLASLONG m, BLASLONG n, BLASLONG k, FLOAT alpha, FLOAT * A, FLOAT * B,
 	  CO[0] += t * alpha;
 #endif
 	  CO += 1;
-	  i -= 1;
 #if defined(TRMMKERNEL)
           REFRESH_AFTER_SAVE (1, 1)
 #endif

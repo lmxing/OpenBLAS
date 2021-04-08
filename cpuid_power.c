@@ -38,6 +38,7 @@
 
 #include  <sys/utsname.h>
 #ifdef _AIX
+#include <sys/systemcfg.h>
 #include <sys/vminfo.h>
 #endif
 #ifdef __APPLE__
@@ -57,7 +58,7 @@
 #define CPUTYPE_PPCG4	   7
 #define CPUTYPE_POWER8     8
 #define CPUTYPE_POWER9     9
-#define CPUTYPE_POWER10    10
+#define CPUTYPE_POWER10   10
 
 char *cpuname[] = {
   "UNKNOWN",
@@ -83,8 +84,8 @@ char *lowercpuname[] = {
   "cell",
   "ppcg4",
   "power8",
-  "power9",
-  "power10"
+  "power9",	
+  "power10"	
 };
 
 char *corename[] = {
@@ -97,13 +98,13 @@ char *corename[] = {
   "CELL",
   "PPCG4",
   "POWER8",
-  "POWER9",
-  "POWER10"
+  "POWER9",  	
+  "POWER10"   	
 };
 
 int detect(void){
 
-#ifdef linux
+#ifdef __linux
   FILE *infile;
   char buffer[512], *p;
 
@@ -137,35 +138,19 @@ int detect(void){
 #endif
 
 #ifdef _AIX
-  FILE *infile;
-  char buffer[512], *p;
+  // Cast from int to unsigned to ensure comparisons work for all bits in
+  // the bit mask, even the top bit
+  unsigned implementation = (unsigned) _system_configuration.implementation;
 
-  p = (char *)NULL;
-  infile = popen("prtconf|grep 'Processor Type'", "r");
-  while (fgets(buffer, sizeof(buffer), infile)){
-    if (!strncmp("Pro", buffer, 3)){
-	p = strchr(buffer, ':') + 2;
-#if 0
-	fprintf(stderr, "%s\n", p);
-#endif
-	break;
-      }
-  }
-
-  pclose(infile);
-
-  if (!strncasecmp(p, "POWER3", 6)) return CPUTYPE_POWER3;
-  if (!strncasecmp(p, "POWER4", 6)) return CPUTYPE_POWER4;
-  if (!strncasecmp(p, "PPC970", 6)) return CPUTYPE_PPC970;
-  if (!strncasecmp(p, "POWER5", 6)) return CPUTYPE_POWER5;
-  if (!strncasecmp(p, "POWER6", 6)) return CPUTYPE_POWER6;
-  if (!strncasecmp(p, "POWER7", 6)) return CPUTYPE_POWER6;
-  if (!strncasecmp(p, "POWER8", 6)) return CPUTYPE_POWER8;
-  if (!strncasecmp(p, "POWER9", 6)) return CPUTYPE_POWER9;
-  if (!strncasecmp(p, "POWER10", 7)) return CPUTYPE_POWER10;
-  if (!strncasecmp(p, "Cell",   4)) return CPUTYPE_CELL;
-  if (!strncasecmp(p, "7447",   4)) return CPUTYPE_PPCG4;
-  return CPUTYPE_POWER5;
+  if (implementation >= 0x40000u) return CPUTYPE_POWER10;
+  else if (implementation & 0x20000) return CPUTYPE_POWER9;
+  else if (implementation & 0x10000) return CPUTYPE_POWER8;
+  else if (implementation & 0x08000) return CPUTYPE_POWER6; // POWER 7
+  else if (implementation & 0x04000) return CPUTYPE_POWER6;
+  else if (implementation & 0x02000) return CPUTYPE_POWER5;
+  else if (implementation & 0x01000) return CPUTYPE_POWER4; // MPC7450
+  else if (implementation & 0x00800) return CPUTYPE_POWER4;
+  else return CPUTYPE_POWER3;
 #endif
 
 #ifdef __APPLE__
@@ -229,6 +214,8 @@ switch ( id >> 16 ) {
     return  CPUTYPE_UNKNOWN;
   }
 #endif
+	
+ return CPUTYPE_UNKNOWN;	
 }
 
 void get_architecture(void){

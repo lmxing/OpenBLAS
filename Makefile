@@ -59,6 +59,9 @@ endif
 	@$(CC) --version > /dev/null 2>&1;\
 	if [ $$? -eq 0 ]; then \
 	   cverinfo=`$(CC) --version | sed -n '1p'`; \
+	   if [ -z "$${cverinfo}" ]; then \
+	   cverinfo=`$(CC) --version | sed -n '2p'`; \
+	   fi; \
 	   echo "  C compiler       ... $(C_COMPILER)  (cmd & version : $${cverinfo})";\
 	else  \
 	   echo "  C compiler       ... $(C_COMPILER)  (command line : $(CC))";\
@@ -67,6 +70,9 @@ ifeq ($(NOFORTRAN), $(filter 0,$(NOFORTRAN)))
 	@$(FC) --version > /dev/null 2>&1;\
 	if [ $$? -eq 0 ]; then \
 	   fverinfo=`$(FC) --version | sed -n '1p'`; \
+	   if [ -z "$${fverinfo}" ]; then \
+	   fverinfo=`$(FC) --version | sed -n '2p'`; \
+	   fi; \
 	   echo "  Fortran compiler ... $(F_COMPILER)  (cmd & version : $${fverinfo})";\
 	else \
 	   echo "  Fortran compiler ... $(F_COMPILER)  (command line : $(FC))";\
@@ -141,7 +147,7 @@ ifndef NO_FBLAS
 	$(MAKE) -C test all
 endif
 	$(MAKE) -C utest all
-ifndef NO_CBLAS
+ifneq ($(NO_CBLAS), 1)
 	$(MAKE) -C ctest all
 ifeq ($(CPP_THREAD_SAFETY_TEST), 1)
 	$(MAKE) -C cpp_thread_test all
@@ -244,7 +250,7 @@ ifeq ($(NOFORTRAN), $(filter 0,$(NOFORTRAN)))
 	@$(MAKE) -C $(NETLIB_LAPACK_DIR) lapacklib
 	@$(MAKE) -C $(NETLIB_LAPACK_DIR) tmglib
 endif
-ifndef NO_LAPACKE
+ifneq ($(NO_LAPACKE), 1)
 	@$(MAKE) -C $(NETLIB_LAPACK_DIR) lapackelib
 endif
 endif
@@ -268,7 +274,11 @@ ifeq ($(NOFORTRAN), $(filter 0,$(NOFORTRAN)))
 	-@echo "POPTS       = $(LAPACK_FPFLAGS)" >> $(NETLIB_LAPACK_DIR)/make.inc
 	-@echo "FFLAGS_NOOPT       = -O0 $(LAPACK_NOOPT)" >> $(NETLIB_LAPACK_DIR)/make.inc
 	-@echo "PNOOPT      = $(LAPACK_FPFLAGS) -O0" >> $(NETLIB_LAPACK_DIR)/make.inc
+ifeq ($(C_COMPILER)$(F_COMPILER)$(USE_OPENMP), CLANGGFORTRAN1)
+	-@echo "LDFLAGS     = $(FFLAGS) $(EXTRALIB) -lomp" >> $(NETLIB_LAPACK_DIR)/make.inc
+else
 	-@echo "LDFLAGS     = $(FFLAGS) $(EXTRALIB)" >> $(NETLIB_LAPACK_DIR)/make.inc
+endif
 	-@echo "CC          = $(CC)" >> $(NETLIB_LAPACK_DIR)/make.inc
 	-@echo "override CFLAGS      = $(LAPACK_CFLAGS)" >> $(NETLIB_LAPACK_DIR)/make.inc
 	-@echo "AR          = $(AR)" >> $(NETLIB_LAPACK_DIR)/make.inc
@@ -301,6 +311,18 @@ else
 endif
 ifeq ($(BUILD_LAPACK_DEPRECATED), 1)
 	-@echo "BUILD_DEPRECATED      = 1" >> $(NETLIB_LAPACK_DIR)/make.inc
+endif
+ifeq ($(BUILD_SINGLE), 1)
+	-@echo "BUILD_SINGLE      = 1" >> $(NETLIB_LAPACK_DIR)/make.inc
+endif
+ifeq ($(BUILD_DOUBLE), 1)
+	-@echo "BUILD_DOUBLE      = 1" >> $(NETLIB_LAPACK_DIR)/make.inc
+endif
+ifeq ($(BUILD_COMPLEX), 1)
+	-@echo "BUILD_COMPLEX      = 1" >> $(NETLIB_LAPACK_DIR)/make.inc
+endif
+ifeq ($(BUILD_COMPLEX16), 1)
+	-@echo "BUILD_COMPLEX16      = 1" >> $(NETLIB_LAPACK_DIR)/make.inc
 endif
 	-@echo "LAPACKE_WITH_TMG      = 1" >> $(NETLIB_LAPACK_DIR)/make.inc
 	-@cat  make.inc >> $(NETLIB_LAPACK_DIR)/make.inc
@@ -365,11 +387,12 @@ clean ::
 	@$(MAKE) -C kernel clean
 #endif
 	@$(MAKE) -C reference clean
-	@rm -f *.$(LIBSUFFIX) *.so *~ *.exe getarch getarch_2nd *.dll *.lib *.$(SUFFIX) *.dwf $(LIBPREFIX).$(LIBSUFFIX) $(LIBPREFIX)_p.$(LIBSUFFIX) $(LIBPREFIX).so.$(MAJOR_VERSION) *.lnk myconfig.h
+	@rm -f *.$(LIBSUFFIX) *.so *~ *.exe getarch getarch_2nd *.dll *.lib *.$(SUFFIX) *.dwf $(LIBPREFIX).$(LIBSUFFIX) $(LIBPREFIX)_p.$(LIBSUFFIX) $(LIBPREFIX).so.$(MAJOR_VERSION) *.lnk myconfig.h *.so.renamed *.a.renamed *.so.0
 ifeq ($(OSNAME), Darwin)
 	@rm -rf getarch.dSYM getarch_2nd.dSYM
 endif
 	@rm -f Makefile.conf config.h Makefile_kernel.conf config_kernel.h st* *.dylib
+	@rm -f cblas.tmp cblas.tmp2
 	@touch $(NETLIB_LAPACK_DIR)/make.inc
 	@$(MAKE) -C $(NETLIB_LAPACK_DIR) clean
 	@rm -f $(NETLIB_LAPACK_DIR)/make.inc $(NETLIB_LAPACK_DIR)/lapacke/include/lapacke_mangling.h
